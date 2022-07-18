@@ -1,7 +1,8 @@
-import { Statement } from "../../entities/Statement";
+import { OperationType, Statement } from "../../entities/Statement";
 import { ICreateStatementDTO } from "../../useCases/createStatement/ICreateStatementDTO";
 import { IGetBalanceDTO } from "../../useCases/getBalance/IGetBalanceDTO";
 import { IGetStatementOperationDTO } from "../../useCases/getStatementOperation/IGetStatementOperationDTO";
+import { ITransferMoneyDTO } from "../../useCases/transferMoney/ITransferMoneyDTO";
 import { IStatementsRepository } from "../IStatementsRepository";
 
 export class InMemoryStatementsRepository implements IStatementsRepository {
@@ -32,7 +33,7 @@ export class InMemoryStatementsRepository implements IStatementsRepository {
     const statement = this.statements.filter(operation => operation.user_id === user_id);
 
     const balance = statement.reduce((acc, operation) => {
-      if (operation.type === 'deposit') {
+      if (operation.type === 'deposit' || operation.type === 'transfer') {
         return acc + operation.amount;
       } else {
         return acc - operation.amount;
@@ -47,5 +48,33 @@ export class InMemoryStatementsRepository implements IStatementsRepository {
     }
 
     return { balance }
+  }
+
+  async createTransfer({
+    amount,
+    description,
+    sender_id,
+    user_id
+  }: ITransferMoneyDTO): Promise<{ withdrawTransfer: Statement; depositTransfer: Statement; }> {
+    const withdrawTransfer = await this.create({
+      user_id: sender_id,
+      description,
+      amount,
+      type: OperationType.WITHDRAW
+    });
+
+    const depositTransfer = await this.create({
+      user_id,
+      description,
+      amount,
+      type: OperationType.TRANSFER
+    });
+
+    const transferStatements = {
+      withdrawTransfer,
+      depositTransfer
+    };
+
+    return transferStatements;
   }
 }
